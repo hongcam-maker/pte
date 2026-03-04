@@ -9,57 +9,59 @@
 <script>
 // Wait for Firebase SDK then init
 (function tryFirebase() {
-  if (typeof firebase !== 'undefined') {
-    try {
-      if (!firebase.apps.length) {
-        firebase.initializeApp({
-          apiKey:"AIzaSyBvP_5SF83shv0Lv06GPdShWPxiPNPocGE",
-          authDomain:"pte-planner.firebaseapp.com",
-          databaseURL:"https://pte-planner-default-rtdb.firebaseio.com",
-          projectId:"pte-planner",
-          storageBucket:"pte-planner.firebasestorage.app",
-          messagingSenderId:"818279959810",
-          appId:"1:818279959810:web:0fcf54578f018f5c52c61b"
-        });
-      }
-      db = firebase.database();
-      // Now do the real Firebase load
-      db.ref('pte_vocab').once('value').then(function(snap){
-        var v=snap.val(); if(v&&Array.isArray(v)) vocabList=v;
-        renderVocabList();
-      }).catch(function(){});
-      db.ref('pte_vocab').on('value',function(snap){
-        var v=snap.val(); if(v&&Array.isArray(v)){ vocabList=v; renderVocabList(); }
+  if (typeof firebase === 'undefined') { setTimeout(tryFirebase, 100); return; }
+  try {
+    if (!firebase.apps.length) {
+      firebase.initializeApp({
+        apiKey:"AIzaSyBvP_5SF83shv0Lv06GPdShWPxiPNPocGE",
+        authDomain:"pte-planner.firebaseapp.com",
+        databaseURL:"https://pte-planner-default-rtdb.firebaseio.com",
+        projectId:"pte-planner",
+        storageBucket:"pte-planner.firebasestorage.app",
+        messagingSenderId:"818279959810",
+        appId:"1:818279959810:web:0fcf54578f018f5c52c61b"
       });
-      db.ref('pte_data').once('value').then(function(snapshot){
-        var data=snapshot.val();
-        if(data){
-          if(data.schedule)schedule=data.schedule;
-          if(data.checked)checked=data.checked;
-          if(data.taskNotes)taskNotes=data.taskNotes;
-          if(data.dayNotes)dayNotes=data.dayNotes;
-          if(data.taskDiff)taskDiff=data.taskDiff;
-          if(data.history30)history30=data.history30;
-        }
-        setSyncStatus(true);
-        renderAll();
-      }).catch(function(){ setSyncStatus(false); });
+    }
+    db = firebase.database();
 
-      db.ref('pte_data').on('value',function(snapshot){
-        var data=snapshot.val(); if(!data)return;
-        if(data.schedule)schedule=data.schedule;
-        if(data.checked)checked=data.checked;
-        if(data.taskNotes)taskNotes=data.taskNotes;
-        if(data.dayNotes)dayNotes=data.dayNotes;
-        if(data.taskDiff)taskDiff=data.taskDiff;
-        if(data.history30)history30=data.history30;
-        setSyncStatus(true);
-        renderAll();
-      });
-    } catch(e) { console.warn('Firebase error:', e.message); }
-  } else {
-    setTimeout(tryFirebase, 100);
-  }
+    // Load data once on startup
+    db.ref('pte_data').once('value').then(function(snapshot){
+      var data = snapshot.val();
+      if (data) {
+        if(data.schedule)  schedule   = data.schedule;
+        if(data.checked)   checked    = data.checked;
+        if(data.taskNotes) taskNotes  = data.taskNotes;
+        if(data.dayNotes)  dayNotes   = data.dayNotes;
+        if(data.taskDiff)  taskDiff   = data.taskDiff;
+        if(data.history30) history30  = data.history30;
+      }
+      setSyncStatus(true);
+      renderAll();
+    }).catch(function(e){ console.warn('Firebase load error:', e); setSyncStatus(false); renderAll(); });
+
+    // Realtime listener — sync changes from other devices
+    db.ref('pte_data').on('value', function(snapshot){
+      var data = snapshot.val(); if (!data) return;
+      if(data.schedule)  schedule   = data.schedule;
+      if(data.checked)   checked    = data.checked;
+      if(data.taskNotes) taskNotes  = data.taskNotes;
+      if(data.dayNotes)  dayNotes   = data.dayNotes;
+      if(data.taskDiff)  taskDiff   = data.taskDiff;
+      if(data.history30) history30  = data.history30;
+      setSyncStatus(true);
+      renderAll();
+    });
+
+    // Vocab sync
+    db.ref('pte_vocab').once('value').then(function(snap){
+      var v = snap.val(); if(v && Array.isArray(v)) vocabList = v;
+      renderVocabList();
+    }).catch(function(){});
+    db.ref('pte_vocab').on('value', function(snap){
+      var v = snap.val(); if(v && Array.isArray(v)){ vocabList = v; renderVocabList(); }
+    });
+
+  } catch(e) { console.warn('Firebase error:', e.message); renderAll(); }
 })();
 </script>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -1569,34 +1571,7 @@ setInterval(updateClock,30000);
 updatePomoDisplay();
 renderPomoDots();
 
-db.ref('pte_data').once('value').then(function(snapshot){
-  var data=snapshot.val();
-  if(data){
-    if(data.schedule)schedule=data.schedule;
-    if(data.checked)checked=data.checked;
-    if(data.taskNotes)taskNotes=data.taskNotes;
-    if(data.dayNotes)dayNotes=data.dayNotes;
-    if(data.taskDiff)taskDiff=data.taskDiff;
-    if(data.history30)history30=data.history30;
-  }
-  setSyncStatus(true);
-  renderAll();
-}).catch(function(){
-  setSyncStatus(false);
-  renderAll();
-});
-
-db.ref('pte_data').on('value',function(snapshot){
-  var data=snapshot.val();if(!data)return;
-  if(data.schedule)schedule=data.schedule;
-  if(data.checked)checked=data.checked;
-  if(data.taskNotes)taskNotes=data.taskNotes;
-  if(data.dayNotes)dayNotes=data.dayNotes;
-  if(data.taskDiff)taskDiff=data.taskDiff;
-  if(data.history30)history30=data.history30;
-  setSyncStatus(true);
-  renderAll();
-});
+// Firebase sync handled by tryFirebase() in <head>
 </script>
 </body>
 </html>
